@@ -5,7 +5,7 @@ class db{
 	private $query = '';
 	private $params = array();
 	private static $table = null;
-  private static $db_config = [
+  	private static $db_config = [
 					'db_type' => "sqlite",
 					'db_name' => "db.sqlite",
 					'db_host' => "localhost",
