@@ -2,7 +2,8 @@
 simple PDO wrapper class
 
 # example
-if(!function_exists('pre')){function * pre($v,$x=0){echo '<pre>';print_r($v);echo'</pre>';if($x)exit;}}
+```
+if(!function_exists('pre')){function pre($v,$x=0){echo '<pre>';print_r($v);echo'</pre>';if($x)exit;}}
 
 $conns= [
           'mydb1'=>['mysql:host=localhost;dbname=test','root',''],
@@ -80,3 +81,4 @@ DB::conn('mydb1')->table('users88')->insert(['name' => 'shamim1','email' => 'sha
 DB::conn('mydb1')->table('users88')->insert(['name' => 'shamim2','email' => 'shamim2@gmail.com', 'votes' => 2]);
 DB::conn('mydb1')->table('users88')->insert(['name' => 'shamim3','email' => 'shamim3@gmail.com', 'votes' => 3]);
 DB::pdo()->commit();
+```
