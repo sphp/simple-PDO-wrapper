@@ -3,7 +3,8 @@ simple PDO wrapper class
 
 # example
 if(!function_exists('pre')){function * pre($v,$x=0){echo '<pre>';print_r($v);echo'</pre>';if($x)exit;}}
-
+* pre DB::conn('mydb1')->table('users')->fields());
+ DB::conn('mydb1')->table('users')->rows(),1);
 $conns= [
           'mydb1'=>['mysql:host=localhost;dbname=test','root',''],
           'mydb12'=>['sqlite:tvinfo.db'],
