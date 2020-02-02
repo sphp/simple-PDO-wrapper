@@ -213,7 +213,7 @@ class DB{
 		if(self::$query) $this->sql = self::$query;
 		if(!$this->sql)  $this->select($args);
 		if($this->where) $this->sql = $this->sql . $this->where;
-		if(!$this->prepare){
+		if($this->prepare){
 			try{
 				$this->stmt = $this->prepare($this->sql);
 			}catch (PDOException $e){
