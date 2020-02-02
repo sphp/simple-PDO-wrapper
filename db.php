@@ -1,7 +1,9 @@
 <?php
+
 /**
  * @license   http://www.opensource.org/licenses/mit-license.html  MIT License
 */
+
 class DB{
 	static  $method, $args, $conns, $driver, $table, $query, $logpath='/dblog';
 	private $pdo, $sql, $stmt, $where;
@@ -31,7 +33,7 @@ class DB{
 						$val = arr($val);
 						$key = is_string($key) ? $key : 'main';
 						try{
-							self::$conns[$key] = new PDO(array_shift($val), array_shift($val), array_shift($val), array_shift($val));
+							self::$conns[$key] = new PDO( array_shift($val), array_shift($val), array_shift($val), array_shift($val) );
 						}catch(PDOException $ex){
 							self::log('Error code1: ', $e->getCode(),'. ',$e->getMessage());
 						}
@@ -66,7 +68,7 @@ class DB{
 			$this->params = array_merge($this->params, array_combine($keys, $vals));
 			return $keys;
 		}
-		return isone(array_values($val));
+		return isone(self::wrap(array_values($val),"'"));
 	}
 	function __call($name, $args){
 		if(method_exists($this->pdo, $name)) return call_user_func_array(array($this->pdo, $name), $args);
@@ -83,17 +85,25 @@ class DB{
 				$items = isAssoc($args) ? [$args] : $args;
 				if(!$this->isTable($table)) $this->createTable($items[0]);
 				if($this->transaction) $this->beginTransaction();
+				$keys = $vals = [];
 				foreach($items as $item){
-					$keys = self::wrap(array_keys($item));
-					$vals = $this->prepareParam($item);
-					$this->sql = 'INSERT INTO `' . $table . '` ('.str($keys).') VALUES ('.str($vals).')';
-					$this->run();
+					if($this->sql===null){
+						$keys = array_keys($item);
+						$vals = $this->prepareParam($item);
+						$this->sql  = 'INSERT INTO `' . $table . '` ('.str(self::wrap($keys)).') VALUES ('.str($vals).')';
+						if($this->bindParam){
+							$this->stmt = $this->prepare($this->sql);
+							foreach ($keys as $i=>$k) $this->stmt->bindParam($vals[$i], $$k);
+						}
+					}
+					if($this->bindParam){ extract($item); $this->stmt->execute();}
+					else $this->run();
 				}
 				if($this->transaction) $this->commit();
 				break;
 			case 'update'	:
 				if(!empty($args)){
-					$keyval = !isAssoc($args) ? $args[0] : $args;
+					$keyval = isIndex($args) ? $args[0] : $args;
 					$arr=[];
 					foreach ($keyval as $k => $v) $arr[] = " `$k` = ". str($this->prepareParam([$k=>$v]));
 					$this->sql = 'UPDATE `'.$table.'` SET '. str($arr);
@@ -116,6 +126,10 @@ class DB{
 				if($this->sql===null) $this->select(); 
 				$this->sql = str_ireplace($this->cols, 'COUNT(*)', $this->sql);
 				return $this->run() ? $this->stmt->fetchColumn() : 0;
+			case 'top'   :
+				if($this->sql===null) $this->select(); 
+				$this->sql = str_ireplace($this->cols, "TOP $args ".$this->cols, $this->sql);
+				break;
 			case 'tables'	:
 				$sql = $this->sqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
 				return $this->query($sql)->fetchAll(PDO::FETCH_COLUMN);//PDO::FETCH_NUM
@@ -199,7 +213,7 @@ class DB{
 		if(self::$query) $this->sql = self::$query;
 		if(!$this->sql)  $this->select($args);
 		if($this->where) $this->sql = $this->sql . $this->where;
-		if($this->prepare){
+		if(!$this->prepare){
 			try{
 				$this->stmt = $this->prepare($this->sql);
 			}catch (PDOException $e){
@@ -239,7 +253,7 @@ class DB{
 	function createTable($args){
 		if($args && !empty(self::$table)){
 			$sql  = 'CREATE TABLE IF NOT EXISTS '. self::$table;
-			$item = isAssoc($args) ? $args :  $args[0]; unset($item['id']); //field id must require so remove it.
+			$item = isIndex($args) ? $args[0] : $args; unset($item['id']); //field id must require so remove it.
 			foreach ($item as $k => $v){
 				$fields[] = str_replace("-", "_", str(self::wrap($k))) .' '.$this->fieldType($v);
 			}
@@ -328,14 +342,15 @@ class DB{
 	static function log($msg){
 		date_default_timezone_set('UTC');
 		$newlog = '['.date('Y-m-d H:i:s').'] ' . $msg; echo $newlog;
-		if(is_readable(self::$logpath))  $newlog .= '\r\n'. file_get_contents(self::$logpath);
+		//if(is_readable(self::$logpath))  $newlog .= "\r\n". file_get_contents(self::$logpath);
 		error_log($newlog, 3, self::$logpath);
 	}
 }
 if(!function_exists('varName')){function varName($val){foreach($GLOBALS as $k=>$v) if($v===$val)return $k;return false;}}
-if(!function_exists('isone')){function isone($v){return (is_array($v)&&!isAssoc($v)&&count($v)===1)?isone($v[0]):$v;}}
+if(!function_exists('isone')){function isone($v){return (is_array($v)&&isIndex($v)&&count($v)===1)?isone($v[0]):$v;}}
 if(!function_exists('uKey')){function uKey($key){$p=arr($key,'_');$i=(int)end($p); return $p[0].'_'.++$i;}}
 if(!function_exists('matches')){function matches($p,$s){return preg_match_all($p,$s,$match)?$match:false;}}
+if(!function_exists('isIndex')){function isIndex($v){return array_values($v)===$v;}}
 if(!function_exists('isAssoc')){function isAssoc($v){return !empty($v)?is_string(array_keys($v)[0]):$v;}}
 if(!function_exists('pre')){function pre($v,$x=0){echo '<pre>';print_r($v);echo'</pre>';if($x)exit;}}
 if(!function_exists('arr')){function arr($v, $d=','){return !is_array($v)?explode($d,$v):$v;}}
