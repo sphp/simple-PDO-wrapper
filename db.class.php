@@ -19,7 +19,7 @@ class DB{
 		$conn = self::$method==='conn' && !empty($args) ? $args : 'main';		//default connection name
 		if(isset(self::$conns[$conn])){	// Get active pdo connection
 			$this->pdo = self::$conns[$conn];
-			//$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);// Set PDO error mode to exception
+			$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);// Set PDO error mode to exception
 			$this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, $this->facobj ? PDO::FETCH_OBJ : PDO::FETCH_ASSOC);
 			self::$driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);	// Get the PDO driver name
 		}
@@ -33,7 +33,7 @@ class DB{
 						try{
 							self::$conns[$key] = new PDO(array_shift($val), array_shift($val), array_shift($val), array_shift($val));
 						}catch(PDOException $ex){
-							self::log('Error code1: ', $e->getCode(),'. ',$e->getMessage());
+							self::log('PDO connection error. Code1: ', $e->getCode(),'. ',$e->getMessage());
 						}
 					}
 				}
@@ -148,7 +148,6 @@ class DB{
 	function update(){
 		$args = set(func_get_args());
 		if($args){
-			$arr=[];
 			foreach ($args as $k=>$v) $arr[] = " `$k` = ". str($this->prepareParam([$k=>$v]));
 			$this->sql = 'UPDATE `'.self::$table.'` SET'. str($arr);
 			$this->run();
@@ -183,10 +182,7 @@ class DB{
 		$sql = $this->sqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
 		return $this->pdo->query($sql)->fetchAll(PDO::FETCH_COLUMN);//PDO::FETCH_NUM
 	}
-	function lastRow($col=''){
-		$row = $this->order_by('id,desc')->limit(1)->row($col);
-		return $col ? $row[$col] : $row;
-	}
+	
 	function fields(){
 		$args  = set(func_get_args());
 		$table = $args ? $args : self::$table;
@@ -234,25 +230,18 @@ class DB{
 		$args=func_get_args();
 		if(!empty($id=reset($args)) && is_numeric($id)){
 			$tot = $this->count();
-			$max = $this->max('id');
 			$off = $id<0 ? $tot+$id : $id-1;
 			return $this->sql('SELECT * FROM `'.self::$table.'` LIMIT '.$off.',1')->row();
 		}
 		return $this->run(reset($args)) ? $this->stmt->fetch($this->facobj(end($args))):null;
 	}
-	function rows(){
-		$args=func_get_args();
-		return $this->run(reset($args))?$this->stmt->fetchAll($this->facobj(end($args))):null;
-	}
+	function rows(){$args=func_get_args();return $this->run(reset($args))?$this->stmt->fetchAll($this->facobj(end($args))):null;}
+	function lastRow($col=''){$row = $this->order_by('id,desc')->limit(1)->row($col);return $col ? $row[$col] : $row;}
 	function run(){
 		if(!$this->pdo) throw new Exception("Error Processing Request! PDO object not found please set valid configure for DB::config()'",1);
-
 		if(self::$query) $this->sql = self::$query;
 		if(!$this->sql)  $this->select(func_get_args());
-		if($this->where) $this->sql = $this->sql . $this->where;
-
-		//pre($this->sql);
-
+		if($this->where) $this->sql = $this->sql.$this->where;
 		if($this->prepare){
 			try{
 				$this->stmt = $this->prepare($this->sql);
@@ -290,8 +279,6 @@ class DB{
 		return !stripos($this->sql, 'insert') ? $this->stmt : $this->lastInsertId();
 	}
 	function sqlite(){return self::$driver==='sqlite';}
-	
-	
 	function create(){
 		$args  = set(func_get_args());
 		$table = set(self::$table);
@@ -299,9 +286,8 @@ class DB{
 			$item = isIndex($args) ? $args[0] : $args;
 			unset($item['id']); //field id must require so remove it.
 			$sql='CREATE TABLE IF NOT EXISTS '. $table;
-			foreach($item as $k => $v) $fields[] = str_replace("-", "_", str(self::wrap($k))) .' '.$this->fieldType($v);
-			$sql.= $this->sqlite() ? '(`id` INTEGER PRIMARY KEY AUTOINCREMENT, ':'(`id` INT PRIMARY KEY AUTO_INCREMENT, ';
-			$sql.= implode(', ', $fields).')';
+			foreach($item as $k => $v) $cols[] = str_replace("-", "_", str(self::wrap($k))) .' '.$this->fieldType($v);
+			$sql.= $this->sqlite()?'(`id` INTEGER PRIMARY KEY AUTOINCREMENT,':'(`id` INT PRIMARY KEY AUTO_INCREMENT, '.implode(',',$cols).')';
 			return $this->query($sql);
 		}
 	}
