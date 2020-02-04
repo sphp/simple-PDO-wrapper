@@ -24,6 +24,11 @@ pre(DB::table('channels')->fields());
 pre(DB::conn('main')->fields('channels'),1);
 
 
+DB::table('channels')->max('id');       //Last ID
+DB::table('channels')->row(1);          //get 1st row
+DB::table('channels')->row(10);          //get 10th row
+DB::table('channels')->row(-1);         //get last row
+DB::table('channels')->row(-2);         //get row befour last 
 
 /*** count examples ***/
 pre(DB::table('channels')->lastRow('id'),1);
