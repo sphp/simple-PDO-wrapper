@@ -180,20 +180,20 @@ class DB{
 	}
 	
 	function tables(){
-		$sql = self::sqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
+		$sql = self::isSqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
 		return self::query($sql)->fetchAll(PDO::FETCH_COLUMN);//PDO::FETCH_NUM
 	}
 
 	function fields(){
 		$args  = set(func_get_args());
 		$table = $args ? $args : self::$table;
-		$sql   = self::sqlite() ? "PRAGMA table_info (`$table`)" : "SHOW FIELDS FROM `$table`";
+		$sql   = self::isSqlite() ? "PRAGMA table_info (`$table`)" : "SHOW FIELDS FROM `$table`";
 		$stmt  = $this->pdo->query($sql);
 		$rows  = $stmt ? $stmt->fetchAll() : null;
 		if($rows){
 			foreach($rows as $row){
-				$name = self::sqlite() ? 'name':'Field';
-				$type = self::sqlite() ? 'type':'Type';
+				$name = self::isSqlite() ? 'name':'Field';
+				$type = self::isSqlite() ? 'type':'Type';
 				if(!empty($row[$name]) && !empty($row[$type])) $this->fields[$row[$name]] = $row[$type];
 			}
 		}
@@ -202,7 +202,7 @@ class DB{
 	function reset($table=''){
 		if(empty($table)) $table = self::$table;
 		if($this->isTable($table)){
-			$sql = self::sqlite() ? "DELETE FROM `$table`;UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='$table';" : 'TRUNCATE TABLE '.$table;
+			$sql = self::isSqlite() ? "DELETE FROM `$table`;UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='$table';" : 'TRUNCATE TABLE '.$table;
 	    	return $this->pdo->exec($sql);
 		}
 	}
@@ -279,7 +279,7 @@ class DB{
 		}
 		return !stripos($this->sql, 'insert') ? $this->stmt : $this->lastInsertId();
 	}
-	static function sqlite(){return self::$driver==='sqlite';}
+	static function isSqlite(){return self::$driver==='sqlite';}
 	function create(){
 		$args  = set(func_get_args());
 		$table = set(self::$table);
@@ -288,16 +288,16 @@ class DB{
 			unset($item['id']); //field id must require so remove it.
 			$sql='CREATE TABLE IF NOT EXISTS '. $table;
 			foreach($item as $k => $v) $cols[] = str_replace("-", "_", str(self::wrap($k))) .' '.$this->fieldType($v);
-			$sql.= self::sqlite()?'(`id` INTEGER PRIMARY KEY AUTOINCREMENT,':'(`id` INT PRIMARY KEY AUTO_INCREMENT, '.implode(',',$cols).')';
+			$sql.= self::isSqlite()?'(`id` INTEGER PRIMARY KEY AUTOINCREMENT,':'(`id` INT PRIMARY KEY AUTO_INCREMENT, '.implode(',',$cols).')';
 			return $this->query($sql);
 		}
 	}
 	function fieldType($value){
 		switch ($value){
 			case is_bool($value)    : return 'BOOLEAN'; break;
-			case is_float($value)   : return self::sqlite() ? 'REAL':'DOUBLE'; break;
-			case is_numeric($value) : return self::sqlite() ? 'INTEGER':'INT'; break;
-			case is_string($value)  : return self::sqlite() ? 'TEXT':'VARCHAR(255)'; break;
+			case is_float($value)   : return self::isSqlite() ? 'REAL':'DOUBLE'; break;
+			case is_numeric($value) : return self::isSqlite() ? 'INTEGER':'INT'; break;
+			case is_string($value)  : return self::isSqlite() ? 'TEXT':'VARCHAR(255)'; break;
 			default                 : return "TEXT";
 		}
 	}
@@ -338,9 +338,9 @@ class DB{
 		$cols = $this->fields();
 		for ($i=0; $i < $n; $i++){
 			foreach ($cols as $col){
-				$name = self::sqlite() ? $col['name'] : $col['Field'];
+				$name = self::isSqlite() ? $col['name'] : $col['Field'];
 				if($name =='id') continue;
-				$array[$name] = $this->demoData(self::sqlite() ? $col['type'] : $col['Type']);
+				$array[$name] = $this->demoData(self::isSqlite() ? $col['type'] : $col['Type']);
 			}
 			$new_array[] = $array;
 		}
