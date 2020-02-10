@@ -178,21 +178,22 @@ class DB{
 		if($this->cols) $this->sql = str_ireplace($this->cols, "TOP $arg ".$this->cols, $this->sql);
 		return $this;
 	}
-	function tables(){
-		$sql = $this->sqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
-		return $this->pdo->query($sql)->fetchAll(PDO::FETCH_COLUMN);//PDO::FETCH_NUM
-	}
 	
+	function tables(){
+		$sql = self::sqlite() ? "SELECT name FROM sqlite_master WHERE type='table'" : 'SHOW TABLES';
+		return self::query($sql)->fetchAll(PDO::FETCH_COLUMN);//PDO::FETCH_NUM
+	}
+
 	function fields(){
 		$args  = set(func_get_args());
 		$table = $args ? $args : self::$table;
-		$sql   = $this->sqlite() ? "PRAGMA table_info (`$table`)" : "SHOW FIELDS FROM `$table`";
+		$sql   = self::sqlite() ? "PRAGMA table_info (`$table`)" : "SHOW FIELDS FROM `$table`";
 		$stmt  = $this->pdo->query($sql);
 		$rows  = $stmt ? $stmt->fetchAll() : null;
 		if($rows){
 			foreach($rows as $row){
-				$name = $this->sqlite() ? 'name':'Field';
-				$type = $this->sqlite() ? 'type':'Type';
+				$name = self::sqlite() ? 'name':'Field';
+				$type = self::sqlite() ? 'type':'Type';
 				if(!empty($row[$name]) && !empty($row[$type])) $this->fields[$row[$name]] = $row[$type];
 			}
 		}
@@ -278,7 +279,7 @@ class DB{
 		}
 		return !stripos($this->sql, 'insert') ? $this->stmt : $this->lastInsertId();
 	}
-	function sqlite(){return self::$driver==='sqlite';}
+	static function sqlite(){return self::$driver==='sqlite';}
 	function create(){
 		$args  = set(func_get_args());
 		$table = set(self::$table);
@@ -287,16 +288,16 @@ class DB{
 			unset($item['id']); //field id must require so remove it.
 			$sql='CREATE TABLE IF NOT EXISTS '. $table;
 			foreach($item as $k => $v) $cols[] = str_replace("-", "_", str(self::wrap($k))) .' '.$this->fieldType($v);
-			$sql.= $this->sqlite()?'(`id` INTEGER PRIMARY KEY AUTOINCREMENT,':'(`id` INT PRIMARY KEY AUTO_INCREMENT, '.implode(',',$cols).')';
+			$sql.= self::sqlite()?'(`id` INTEGER PRIMARY KEY AUTOINCREMENT,':'(`id` INT PRIMARY KEY AUTO_INCREMENT, '.implode(',',$cols).')';
 			return $this->query($sql);
 		}
 	}
 	function fieldType($value){
 		switch ($value){
 			case is_bool($value)    : return 'BOOLEAN'; break;
-			case is_float($value)   : return $this->sqlite() ? 'REAL':'DOUBLE'; break;
-			case is_numeric($value) : return $this->sqlite() ? 'INTEGER':'INT'; break;
-			case is_string($value)  : return $this->sqlite() ? 'TEXT':'VARCHAR(255)'; break;
+			case is_float($value)   : return self::sqlite() ? 'REAL':'DOUBLE'; break;
+			case is_numeric($value) : return self::sqlite() ? 'INTEGER':'INT'; break;
+			case is_string($value)  : return self::sqlite() ? 'TEXT':'VARCHAR(255)'; break;
 			default                 : return "TEXT";
 		}
 	}
@@ -337,9 +338,9 @@ class DB{
 		$cols = $this->fields();
 		for ($i=0; $i < $n; $i++){
 			foreach ($cols as $col){
-				$name = $this->sqlite() ? $col['name'] : $col['Field'];
+				$name = self::sqlite() ? $col['name'] : $col['Field'];
 				if($name =='id') continue;
-				$array[$name] = $this->demoData($this->sqlite() ? $col['type'] : $col['Type']);
+				$array[$name] = $this->demoData(self::sqlite() ? $col['type'] : $col['Type']);
 			}
 			$new_array[] = $array;
 		}
